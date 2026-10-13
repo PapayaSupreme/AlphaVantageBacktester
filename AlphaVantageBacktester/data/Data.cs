@@ -1,12 +1,16 @@
 ﻿namespace AlphaVantageBacktester.data;
 using System; 
+using System.Globalization;
 using System.IO; 
 using System.Net.Http; 
 using System.Threading.Tasks; 
 using utilities;
 public class Data
-{ 
-    static async Task Fetcher(string symbol) 
+{
+    private static readonly string DataDirectory = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "data"));
+
+    public static async Task Fetcher(string symbol) 
     { 
         string apiKey = Env.GetApiKey();
  
@@ -29,7 +33,7 @@ public class Data
                         response.Content.ReadAsStringAsync(); 
  
                     // Save the CSV data to a file 
-                    string filePath = $"{symbol}_daily_data.csv"; 
+                    string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
                     File.WriteAllText(filePath, csvData); 
  
                     Console.WriteLine($"Data successfully fetched and saved to {filePath}"); 
@@ -47,10 +51,10 @@ public class Data
         } 
     }
 
-    static void Parser(string symbol)
+    public static void Parser(string symbol)
     {
         {
-            string filePath = $"{symbol}_daily_data.csv"; // Path to the CSV file 
+            string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
 
             try
             {
@@ -63,14 +67,13 @@ public class Data
                     string[] columns = lines[i].Split(',');
 
                     string date = columns[0];
-                    double openPrice = double.Parse(columns[1]);
-                    double highPrice = double.Parse(columns[2]);
-                    double lowPrice = double.Parse(columns[3]);
-                    double closePrice = double.Parse(columns[4]);
-                    long volume = long.Parse(columns[5]);
+                    double openPrice = double.Parse(columns[1], CultureInfo.InvariantCulture);
+                    double highPrice = double.Parse(columns[2], CultureInfo.InvariantCulture);
+                    double lowPrice = double.Parse(columns[3], CultureInfo.InvariantCulture);
+                    double closePrice = double.Parse(columns[4], CultureInfo.InvariantCulture);
+                    long volume = long.Parse(columns[5], CultureInfo.InvariantCulture);
 
-                    Console.WriteLine(
-                        $"Date: {date}, Open: {openPrice}, High: {highPrice}, Low: {lowPrice}, Close: {closePrice}");
+                    //Console.WriteLine($"Date: {date}, Open: {openPrice}, High: {highPrice}, Low: {lowPrice}, Close: {closePrice}, Volume: {volume}");
                     // Perform calculations or add to your backtesting logic here 
                 }
             }

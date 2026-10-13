@@ -9,14 +9,21 @@ public class Env
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            string envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-
-            if (File.Exists(envPath))
+            DirectoryInfo? directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+            while (directory is not null)
             {
-                apiKey = File.ReadLines(envPath)
-                    .Where(line => line.StartsWith($"{variableName}=", StringComparison.Ordinal))
-                    .Select(line => line[(variableName.Length + 1)..].Trim())
-                    .FirstOrDefault();
+                string envPath = Path.Combine(directory.FullName, ".env");
+
+                if (File.Exists(envPath))
+                {
+                    apiKey = File.ReadLines(envPath)
+                        .Where(line => line.StartsWith($"{variableName}=", StringComparison.Ordinal))
+                        .Select(line => line[(variableName.Length + 1)..].Trim())
+                        .FirstOrDefault();
+                    break;
+                }
+
+                directory = directory.Parent;
             }
         }
 
