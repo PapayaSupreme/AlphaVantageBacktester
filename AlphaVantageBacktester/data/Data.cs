@@ -4,7 +4,7 @@ using System.IO;
 using System.Net.Http; 
 using System.Threading.Tasks; 
 using utilities;
-public class Fetch
+public class Data
 { 
     static async Task Fetcher(string symbol) 
     { 
@@ -45,5 +45,39 @@ public class Fetch
         { 
             Console.WriteLine($"Exception: {ex.Message}"); 
         } 
-    } 
+    }
+
+    static void Parser(string symbol)
+    {
+        {
+            string filePath = $"{symbol}_daily_data.csv"; // Path to the CSV file 
+
+            try
+            {
+                // Read the CSV file line by line 
+                string[] lines = File.ReadAllLines(filePath);
+
+                // Skip the header and process each line 
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] columns = lines[i].Split(',');
+
+                    string date = columns[0];
+                    double openPrice = double.Parse(columns[1]);
+                    double highPrice = double.Parse(columns[2]);
+                    double lowPrice = double.Parse(columns[3]);
+                    double closePrice = double.Parse(columns[4]);
+                    long volume = long.Parse(columns[5]);
+
+                    Console.WriteLine(
+                        $"Date: {date}, Open: {openPrice}, High: {highPrice}, Low: {lowPrice}, Close: {closePrice}");
+                    // Perform calculations or add to your backtesting logic here 
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
+            }
+        }
+    }
 } 
