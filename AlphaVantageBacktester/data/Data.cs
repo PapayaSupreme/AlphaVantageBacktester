@@ -16,17 +16,19 @@ public class Data
 
     private static readonly TimeSpan CacheMaxAge = TimeSpan.FromHours(24);
 
-    public static async Task Fetcher(string symbol)
+    public static async Task<bool> Fetcher(string symbol)
     {
+        symbol = NormalizeSymbol(symbol);
         string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
 
         if (File.Exists(filePath) && DateTime.Now - File.GetLastWriteTime(filePath) < CacheMaxAge)
         {
             Console.WriteLine($"Using cached data for {symbol} ({filePath})");
-            return;
+            return true;
         }
 
         string apiKey = Env.GetApiKey();
+        Directory.CreateDirectory(DataDirectory);
 
         // Construct the API URL
         string url =
@@ -47,25 +49,31 @@ public class Data
                         response.Content.ReadAsStringAsync(); 
  
                     // Save the CSV data to a file
+                    if (string.IsNullOrWhiteSpace(csvData) || csvData.StartsWith("{", StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("The API returned an error instead of CSV data.");
+                    }
+
                     File.WriteAllText(filePath, csvData);
  
                     Console.WriteLine($"Data successfully fetched and saved to {filePath}"); 
+                    return true;
                 } 
-                else 
-                { 
-                    Console.WriteLine($"Error: Unable to fetch data. Status Code: {response.StatusCode}"); 
-                } 
+
+                throw new HttpRequestException($"Unable to fetch data. Status Code: {response.StatusCode}");
             } 
 
         } 
         catch (Exception ex) 
         { 
             Console.WriteLine($"Exception: {ex.Message}"); 
+            return false;
         } 
     }
 
     public static List<PriceBar> Parser(string symbol)
     {
+        symbol = NormalizeSymbol(symbol);
         string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
         var bars = new List<PriceBar>();
 
@@ -77,7 +85,16 @@ public class Data
             // Skip the header and process each line
             for (int i = 1; i < lines.Length; i++)
             {
+                if (string.IsNullOrWhiteSpace(lines[i]))
+                {
+                    continue;
+                }
+
                 string[] columns = lines[i].Split(',');
+                if (columns.Length < 6)
+                {
+                    throw new FormatException($"Invalid CSV row at line {i + 1}.");
+                }
 
                 DateTime date = DateTime.Parse(columns[0], CultureInfo.InvariantCulture);
                 double openPrice = double.Parse(columns[1], CultureInfo.InvariantCulture);
@@ -88,6 +105,8 @@ public class Data
 
                 bars.Add(new PriceBar(date, openPrice, highPrice, lowPrice, closePrice, volume));
             }
+
+            bars.Sort((left, right) => left.Date.CompareTo(right.Date));
         }
         catch (Exception ex)
         {
@@ -95,5 +114,16 @@ public class Data
         }
 
         return bars;
+    }
+
+    private static string NormalizeSymbol(string symbol)
+    {
+        if (string.IsNullOrWhiteSpace(symbol) ||
+            symbol.Any(character => !char.IsLetterOrDigit(character) && character != '.' && character != '-'))
+        {
+            throw new ArgumentException("Ticker symbols may only contain letters, numbers, '.', or '-'.", nameof(symbol));
+        }
+
+        return symbol.Trim().ToUpperInvariant();
     }
 } 
