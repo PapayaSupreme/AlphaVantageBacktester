@@ -63,8 +63,9 @@ public static class Metrics
         return returns;
     }
 
-    private static double MaximumDrawdown(List<PriceBar> bars)
+    public static double MaximumDrawdown(List<PriceBar> bars)
     {
+        ValidateBars(bars);
         var peak = bars[0].Close;
         var maximumDrawdown = 0d;
 
