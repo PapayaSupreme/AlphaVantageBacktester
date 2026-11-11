@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="600"
+        x:Class="AlphaVantageBacktester.Gui.MainWindow"
+        xmlns:sp="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+        Title="Alpha Vantage Backtester"
+        Width="980" Height="600"
+        MinWidth="760" MinHeight="480"
+        Background="#F4F3EF"
+        FontFamily="Menlo,Consolas,monospace">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="InkBrush" Color="#1C1C1C" />
+        <SolidColorBrush x:Key="FaintBrush" Color="#8A8A82" />
+        <SolidColorBrush x:Key="RuleBrush" Color="#C9C7BC" />
+        <SolidColorBrush x:Key="GoodBrush" Color="#2E7D32" />
+        <SolidColorBrush x:Key="OkayBrush" Color="#9A6B00" />
+        <SolidColorBrush x:Key="BadBrush" Color="#B3261E" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource FaintBrush}" />
+            <Setter Property="Margin" Value="0,10,0,3" />
+        </Style>
+        <Style Selector="ComboBox, TextBox">
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource RuleBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontFamily" Value="Menlo,Consolas,monospace" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Button#RunButton">
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="{StaticResource InkBrush}" />
+            <Setter Property="Foreground" Value="#F4F3EF" />
+            <Setter Property="Padding" Value="0,10" />
+            <Setter Property="FontFamily" Value="Menlo,Consolas,monospace" />
+        </Style>
+        <Style Selector="Button#RunButton:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3A3A3A" />
+        </Style>
+        <Style Selector="Button#RunButton:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="#B5B3A8" />
+        </Style>
+        <Style Selector="Rectangle.rule">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Fill" Value="{StaticResource RuleBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="28">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="ALPHA VANTAGE BACKTESTER" FontSize="15" FontWeight="Bold"
+                       LetterSpacing="1" />
+            <TextBlock Grid.Column="1" x:Name="ClockText" Foreground="{StaticResource FaintBrush}" FontSize="12" />
+        </Grid>
+        <Rectangle DockPanel.Dock="Top" Classes="rule" Margin="0,8,0,20" />
+
+        <Grid ColumnDefinitions="260,32,*" RowDefinitions="*">
+            <!-- Left: controls + log -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,1,*">
+                <StackPanel Grid.Row="0" Spacing="0">
+                    <TextBlock Text="TICKER" Classes="label" Margin="0,0,0,3" />
+                    <ComboBox x:Name="PopularTickerComboBox" HorizontalAlignment="Stretch" SelectedIndex="0" />
+
+                    <TextBlock Text="OR TYPE ONE" Classes="label" />
+                    <TextBox x:Name="CustomTickerTextBox" PlaceholderText="GOOGL" />
+
+                    <TextBlock Text="STRATEGY" Classes="label" />
+                    <ComboBox x:Name="StrategyComboBox" HorizontalAlignment="Stretch" SelectedIndex="0">
+                        <ComboBoxItem Content="EMA crossover" />
+                        <ComboBoxItem Content="Linear regression" />
+                        <ComboBoxItem Content="RSI mean reversion" />
+                    </ComboBox>
+
+                    <Button x:Name="RunButton" Content="RUN BACKTEST" HorizontalAlignment="Stretch"
+                            Margin="0,16,0,0" Click="OnRunButtonClick" />
+                </StackPanel>
+
+                <Rectangle Grid.Row="1" Classes="rule" Margin="0,20,0,20" />
+
+                <DockPanel Grid.Row="2">
+                    <TextBlock DockPanel.Dock="Top" Text="LOG" Classes="label" Margin="0,0,0,6" />
+                    <ScrollViewer>
+                        <TextBlock x:Name="LogTextBlock" TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{StaticResource FaintBrush}" />
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
+
+            <Rectangle Grid.Column="1" Width="1" Fill="{StaticResource RuleBrush}" HorizontalAlignment="Center" />
+
+            <!-- Right: equity curve + results -->
+            <Grid Grid.Column="2" RowDefinitions="260,20,*">
+                <sp:AvaPlot x:Name="EquityPlot" Grid.Row="0" />
+
+                <Rectangle Grid.Row="1" Classes="rule" Margin="0,10,0,10" />
+
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel x:Name="ResultsPanel" Spacing="0">
+                        <TextBlock x:Name="PlaceholderText" Text="&gt; choose a ticker and strategy, then run backtest"
+                                   Foreground="{StaticResource FaintBrush}" FontSize="13" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>
