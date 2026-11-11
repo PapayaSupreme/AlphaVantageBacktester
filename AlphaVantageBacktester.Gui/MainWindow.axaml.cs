@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,6 +18,15 @@ namespace AlphaVantageBacktester.Gui;
 public partial class MainWindow : Window
 {
     private static readonly string[] PopularTickers = ["AAPL", "MSFT", "NVDA", "TSLA"];
+
+    private static readonly string ReportsDirectory = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "AlphaVantageBacktester", "reports"));
+
+    private string? _lastTicker;
+    private Timeframe _lastTimeframe;
+    private Strategy? _lastStrategy;
+    private List<PriceBar>? _lastBars;
+    private BacktestResult? _lastResult;
 
     public MainWindow()
     {
@@ -104,9 +114,37 @@ public partial class MainWindow : Window
         {
             1 => StrategyType.Regression,
             2 => StrategyType.RsiMeanReversion,
+            3 => StrategyType.Macd,
+            4 => StrategyType.Breakout,
+            5 => StrategyType.BollingerBands,
             _ => StrategyType.Ema
         };
     }
+
+    private Timeframe ReadTimeframe()
+    {
+        return TimeframeComboBox.SelectedIndex switch
+        {
+            1 => Timeframe.Weekly,
+            _ => Timeframe.Daily
+        };
+    }
+
+    private (int ShortPeriod, int LongPeriod, double PositionSkew) ReadStrategyParameters()
+    {
+        int shortPeriod = TryParseInt(ShortPeriodTextBox.Text, 12);
+        int longPeriod = TryParseInt(LongPeriodTextBox.Text, 26);
+        double positionSkew = TryParseDouble(PositionSkewTextBox.Text, 0.5);
+        return (shortPeriod, longPeriod, positionSkew);
+    }
+
+    private static int TryParseInt(string? input, int fallback) =>
+        int.TryParse(input?.Trim(), out int value) ? value : fallback;
+
+    private static double TryParseDouble(string? input, double fallback) =>
+        double.TryParse(input?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+            ? value
+            : fallback;
 
     private static readonly IBrush InkBrush = new SolidColorBrush(Color.Parse("#1C1C1C"));
     private static readonly IBrush MutedBrush = new SolidColorBrush(Color.Parse("#8A8A82"));
@@ -120,9 +158,11 @@ public partial class MainWindow : Window
 
         try
         {
+            Timeframe timeframe = ReadTimeframe();
+
             bool fetched;
             string consoleOutput;
-            (fetched, consoleOutput) = await CaptureConsoleAsync(() => Data.Fetcher(ticker));
+            (fetched, consoleOutput) = await CaptureConsoleAsync(() => Data.Fetcher(ticker, timeframe));
             AppendLog(consoleOutput);
 
             if (!fetched)
@@ -131,7 +171,7 @@ public partial class MainWindow : Window
             }
 
             List<PriceBar> bars;
-            (bars, consoleOutput) = CaptureConsole(() => Data.Parser(ticker));
+            (bars, consoleOutput) = CaptureConsole(() => Data.Parser(ticker, timeframe));
             AppendLog(consoleOutput);
 
             if (bars.Count < 27)
@@ -141,7 +181,8 @@ public partial class MainWindow : Window
             }
 
             StrategyType strategyType = ReadStrategyType();
-            var strategy = new Strategy(strategyType);
+            (int shortPeriod, int longPeriod, double positionSkew) = ReadStrategyParameters();
+            var strategy = new Strategy(strategyType, shortPeriod, longPeriod, positionSkew);
             BacktestResult result = strategy.Backtest(bars);
             List<PriceBar> equity = result.EquityCurve;
 
@@ -161,6 +202,8 @@ public partial class MainWindow : Window
             AddLine($"Ending value:   {equity[^1].Close:N2}");
             AddLine(string.Empty);
 
+            AddMetricLine("Cumulative return", Metrics.CumulativeReturn(equity), value => value > 0,
+                value => value >= 0, "{0:P2}");
             AddMetricLine("Volatility", Metrics.Volatility(equity), value => value <= 0.2, value => value <= 0.4,
                 "{0:F6}");
             AddMetricLine("Sharpe", Metrics.Sharpe(equity), value => value >= 1, value => value >= 0, "{0:F6}");
@@ -168,10 +211,49 @@ public partial class MainWindow : Window
             AddMetricLine("Calmar", Metrics.Calmar(equity), value => value >= 1, value => value >= 0, "{0:F6}");
             AddMetricLine("Max drawdown", Metrics.MaximumDrawdown(equity), value => value <= 0.1, value => value <= 0.2,
                 "{0:P2}");
+
+            AddTradeLog(result.TradeLog);
+
+            _lastTicker = ticker;
+            _lastTimeframe = timeframe;
+            _lastStrategy = strategy;
+            _lastBars = bars;
+            _lastResult = result;
+            ExportButton.IsEnabled = true;
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or IOException)
         {
             AddLine($"Unable to backtest {ticker}: {exception.Message}", BadBrush);
+        }
+    }
+
+    private void OnExportButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (_lastTicker is null || _lastStrategy is null || _lastBars is null || _lastResult is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ReportsDirectory);
+            string baseName = ReportGenerator.BuildFileName(_lastTicker, _lastStrategy.Type, "txt")
+                .Replace(".txt", string.Empty);
+
+            string report = ReportGenerator.Generate(_lastTicker, _lastTimeframe, _lastStrategy, _lastBars,
+                _lastResult);
+            string reportPath = Path.Combine(ReportsDirectory, $"{baseName}.txt");
+            File.WriteAllText(reportPath, report);
+
+            string chartPath = Path.Combine(ReportsDirectory, $"{baseName}.png");
+            EquityPlot.Plot.SavePng(chartPath, 900, 500);
+
+            AppendLog($"Report saved to {reportPath}");
+            AppendLog($"Chart saved to {chartPath}");
+        }
+        catch (IOException exception)
+        {
+            AppendLog($"Export failed: {exception.Message}");
         }
     }
 
@@ -190,6 +272,23 @@ public partial class MainWindow : Window
     {
         IBrush brush = good(value) ? GoodBrush : okay(value) ? OkayBrush : BadBrush;
         AddLine($"{name,-15}: {string.Format(format, value)}", brush);
+    }
+
+    private void AddTradeLog(List<Trade> tradeLog, int maxRows = 10)
+    {
+        int shown = Math.Min(maxRows, tradeLog.Count);
+        AddLine(string.Empty);
+        AddLine($"Trade log ({tradeLog.Count} trades, last {shown} shown):");
+        AddLine($"{"Date",-12} {"Side",-5} {"Shares",10} {"Price",10} {"Value",10}");
+
+        foreach (Trade trade in tradeLog.TakeLast(maxRows))
+        {
+            string side = trade.Shares >= 0 ? "BUY" : "SELL";
+            IBrush brush = trade.Shares >= 0 ? GoodBrush : BadBrush;
+            AddLine(
+                $"{trade.Date:yyyy-MM-dd} {side,-5} {Math.Abs(trade.Shares),10:N2} {trade.Price,10:N2} {Math.Abs(trade.Value),10:N2}",
+                brush);
+        }
     }
 
     private void AppendLog(string text)

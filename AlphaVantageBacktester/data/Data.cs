@@ -16,10 +16,10 @@ public class Data
 
     private static readonly TimeSpan CacheMaxAge = TimeSpan.FromHours(24);
 
-    public static async Task<bool> Fetcher(string symbol)
+    public static async Task<bool> Fetcher(string symbol, Timeframe timeframe = Timeframe.Daily)
     {
         symbol = NormalizeSymbol(symbol);
-        string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
+        string filePath = GetFilePath(symbol, timeframe);
 
         if (File.Exists(filePath) && DateTime.Now - File.GetLastWriteTime(filePath) < CacheMaxAge)
         {
@@ -31,8 +31,9 @@ public class Data
         Directory.CreateDirectory(DataDirectory);
 
         // Construct the API URL
+        string function = timeframe == Timeframe.Weekly ? "TIME_SERIES_WEEKLY" : "TIME_SERIES_DAILY";
         string url =
-            $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={apiKey}&datatype=csv";
+            $"https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apiKey}&datatype=csv";
 
         try
         {
@@ -71,10 +72,10 @@ public class Data
         } 
     }
 
-    public static List<PriceBar> Parser(string symbol)
+    public static List<PriceBar> Parser(string symbol, Timeframe timeframe = Timeframe.Daily)
     {
         symbol = NormalizeSymbol(symbol);
-        string filePath = Path.Combine(DataDirectory, $"{symbol}_daily_data.csv");
+        string filePath = GetFilePath(symbol, timeframe);
         var bars = new List<PriceBar>();
 
         try
@@ -114,6 +115,12 @@ public class Data
         }
 
         return bars;
+    }
+
+    private static string GetFilePath(string symbol, Timeframe timeframe)
+    {
+        string suffix = timeframe == Timeframe.Weekly ? "weekly" : "daily";
+        return Path.Combine(DataDirectory, $"{symbol}_{suffix}_data.csv");
     }
 
     private static string NormalizeSymbol(string symbol)

@@ -6,6 +6,12 @@ public static class Metrics
 {
     private const double TradingDaysPerYear = 252d;
 
+    public static double CumulativeReturn(List<PriceBar> bars)
+    {
+        ValidateBars(bars);
+        return bars[^1].Close / bars[0].Close - 1;
+    }
+
     public static double Volatility(List<PriceBar> bars)
     {
         var returns = GetReturns(bars);
