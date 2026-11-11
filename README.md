@@ -1,12 +1,29 @@
-# Prerequisites: 
-- C# NET 10.0+
+# Prerequisites
+- .NET 10.0 SDK or later
 
-# How to launch:
-- Copy `./AlphaVantageBacktester/.env.example` and rename the copy to `.env`
-- Put in your Alppha Vantage Api Key following the example's structure
-- Compile through the entry point of the project
+# Configuration
+- Create both environment files from their examples:
+  - Copy `AlphaVantageBacktester/.env.example` to `AlphaVantageBacktester/.env`.
+  - Copy `AlphaVantageBacktester.Gui/.env.example` to `AlphaVantageBacktester.Gui/.env`.
+- Fill in `ALPHA_VANTAGE_API_KEY` with your Alpha Vantage API key in both `.env` files.
 
-# How to use:
+# How to launch
+
+From the repository root, choose either application:
+
+## CLI
+
+```bash
+dotnet run --project AlphaVantageBacktester
+```
+
+## GUI
+
+```bash
+dotnet run --project AlphaVantageBacktester.Gui
+```
+
+# How to use
 - Run the application and choose a ticker from the menu. Data is either fetched from AlphaVantage, or instantiated through cached data if not older than 24 hours.
 - The menu supports 12/26 EMA crossover, linear-regression trend following, and RSI mean reversion.
 - Each strategy starts with 10,000 and can take long or short exposure. Position sizing moves 50% toward
